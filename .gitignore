@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Local database (rebuilt by the pipeline)
+data/*.duckdb
+data/*.duckdb.wal
+
+# MeteoSwiss raw files are re-downloaded (ETag cache)
+data/raw/meteoswiss/*
+!data/raw/meteoswiss/.gitkeep
+
+# Swissgrid Excel files are large; the Parquet extract in data/processed is committed
+data/raw/swissgrid/*.xls*
+
+# macOS
+.DS_Store
