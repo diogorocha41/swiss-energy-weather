@@ -17,12 +17,21 @@ MARTS = Path(__file__).resolve().parents[1] / "data" / "marts"
 st.set_page_config(page_title="Swiss electricity x weather", layout="wide")
 
 
+def _data_version() -> str:
+    """Changes whenever a mart file changes, so the cache never serves stale data."""
+    return "|".join(f"{f.name}:{f.stat().st_mtime_ns}:{f.stat().st_size}" for f in sorted(MARTS.glob("*.parquet")))
+
+
 @st.cache_data(ttl=3600)
-def q(sql: str):
+def _query(sql: str, version: str):
     con = duckdb.connect()
     for f in MARTS.glob("*.parquet"):
         con.execute(f"CREATE VIEW {f.stem} AS SELECT * FROM read_parquet('{f.as_posix()}')")
     return con.execute(sql).df()
+
+
+def q(sql: str):
+    return _query(sql, _data_version())
 
 
 if not (MARTS / "fct_daily.parquet").exists():
