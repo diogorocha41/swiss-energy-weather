@@ -12,6 +12,7 @@ import pandas as pd
 from src.config import (
     RAW_SWISSGRID_DIR,
     START_YEAR,
+    SWISSGRID_EXTRACT,
     SWISSGRID_SERIES,
     SWISSGRID_SHEET_PREFIX,
     SWISSGRID_TIMEZONE,
@@ -103,9 +104,27 @@ def run(con) -> None:
     )
     files = sorted(RAW_SWISSGRID_DIR.glob("*.xls*"))
     if not files:
-        log.warning("No Swissgrid files in %s — download them first (see README).", RAW_SWISSGRID_DIR)
+        # CI / fresh clone: the raw Excel files are too big for git, so we
+        # rebuild from the compact Parquet extract committed in the repo.
+        if SWISSGRID_EXTRACT.exists():
+            sha = file_sha256(SWISSGRID_EXTRACT)
+            if not already_loaded(con, SOURCE, SWISSGRID_EXTRACT, sha):
+                con.execute("DELETE FROM raw_swissgrid")
+                con.execute(
+                    f"""
+                    INSERT INTO raw_swissgrid
+                    SELECT ts_utc_end, series, value_kwh, source_file, current_timestamp
+                    FROM read_parquet('{SWISSGRID_EXTRACT.as_posix()}')
+                    """
+                )
+                n = con.execute("SELECT count(*) FROM raw_swissgrid").fetchone()[0]
+                log_load(con, SOURCE, SWISSGRID_EXTRACT, sha, n)
+                log.info("swissgrid: loaded extract %s (%d rows)", SWISSGRID_EXTRACT.name, n)
+        else:
+            log.warning("No Swissgrid files in %s — download them first (see README).", RAW_SWISSGRID_DIR)
         return
 
+    changed = False
     for path in files:
         sha = file_sha256(path)
         if already_loaded(con, SOURCE, path, sha):
@@ -124,3 +143,23 @@ def run(con) -> None:
         con.unregister("incoming")
         log_load(con, SOURCE, path, sha, len(df))
         log.info("swissgrid: loaded %s (%d rows)", path.name, len(df))
+        changed = True
+
+    if changed or not SWISSGRID_EXTRACT.exists():
+        export_extract(con)
+
+
+def export_extract(con) -> None:
+    """Write raw_swissgrid as compressed Parquet (small enough for git)."""
+    SWISSGRID_EXTRACT.parent.mkdir(parents=True, exist_ok=True)
+    con.execute(
+        f"""
+        COPY (
+            SELECT ts_utc_end, series, value_kwh, source_file
+            FROM raw_swissgrid
+            QUALIFY row_number() OVER (PARTITION BY ts_utc_end, series ORDER BY loaded_at DESC) = 1
+            ORDER BY series, ts_utc_end
+        ) TO '{SWISSGRID_EXTRACT.as_posix()}' (FORMAT parquet, COMPRESSION zstd)
+        """
+    )
+    log.info("swissgrid: extract written to %s", SWISSGRID_EXTRACT)

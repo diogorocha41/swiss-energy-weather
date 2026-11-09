@@ -37,6 +37,9 @@ st.caption(
 
 daily = q("SELECT * FROM fct_daily WHERE is_complete ORDER BY date_local")
 daily["date_local"] = pd.to_datetime(daily["date_local"])
+if daily.empty:
+    st.warning("The data marts are empty — the pipeline ran without Swissgrid data.")
+    st.stop()
 sens = q("SELECT * FROM mart_temp_sensitivity ORDER BY season_start_year")
 years = sorted(daily["year"].unique().tolist())
 
