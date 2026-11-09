@@ -7,8 +7,7 @@ RAW_SWISSGRID_DIR = DATA_DIR / "raw" / "swissgrid"
 RAW_METEO_DIR = DATA_DIR / "raw" / "meteoswiss"
 MARTS_DIR = DATA_DIR / "marts"
 DB_PATH = DATA_DIR / "energy.duckdb"
-SQL_MODELS_DIR = ROOT / "sql" / "models"
-SQL_TESTS_DIR = ROOT / "sql" / "tests"
+DBT_DIR = ROOT / "dbt"
 
 # First year to keep (older data is ignored to keep the project light).
 START_YEAR = 2019

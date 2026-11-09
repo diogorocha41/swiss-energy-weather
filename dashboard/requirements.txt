@@ -1,0 +1,5 @@
+# Used by Streamlit Community Cloud (it reads the requirements next to the app first)
+streamlit>=1.38
+altair>=5.3
+duckdb>=1.1
+pandas>=2.2

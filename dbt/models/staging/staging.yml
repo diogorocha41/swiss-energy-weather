@@ -1,0 +1,18 @@
+version: 2
+
+models:
+  - name: stg_grid_hourly
+    description: Swissgrid data deduplicated and rolled up from 15-minute to hourly buckets (UTC), in MWh.
+    columns:
+      - name: hour_utc_end
+        tests: [unique, not_null]
+      - name: n_quarter_hours
+        description: Quarter-hours found in the hour (4 when complete).
+
+  - name: stg_weather_hourly
+    description: Weighted national weather per hour from the configured stations.
+    columns:
+      - name: hour_utc_end
+        tests: [unique, not_null]
+      - name: n_stations
+        description: Stations that reported temperature in that hour.

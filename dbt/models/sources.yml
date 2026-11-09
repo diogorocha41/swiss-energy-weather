@@ -1,0 +1,32 @@
+version: 2
+
+sources:
+  - name: raw
+    description: Tables loaded by the Python ingestion layer (src/ingest_*.py, src/transform.py).
+    schema: main
+    tables:
+      - name: raw_swissgrid
+        description: Swissgrid 15-minute energy data, long format, UTC, kWh.
+        columns:
+          - name: ts_utc_end
+            description: End of the 15-minute interval (UTC).
+            tests: [not_null]
+          - name: series
+            tests:
+              - accepted_values:
+                  values: [end_consumption, total_consumption, production, net_outflow, grid_feed_in]
+      - name: raw_meteo_hourly
+        description: MeteoSwiss SwissMetNet hourly station data (UTC, interval end).
+        columns:
+          - name: station
+            tests: [not_null]
+      - name: dim_station
+        description: Weather stations and their weights for the national average (from config.py).
+        columns:
+          - name: station
+            tests: [unique, not_null]
+      - name: dim_holiday
+        description: Swiss public holidays (computed in src/calendar_ch.py).
+        columns:
+          - name: holiday_date
+            tests: [unique, not_null]

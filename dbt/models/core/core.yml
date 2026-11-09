@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: fct_hourly
+    description: One row per hour with energy, weather and calendar features (Swiss local time).
+    columns:
+      - name: hour_utc_end
+        tests: [unique, not_null]
+      - name: day_type
+        tests:
+          - not_null
+          - accepted_values:
+              values: [Working day, Saturday, Sunday, Holiday]
+      - name: season
+        tests:
+          - accepted_values:
+              values: [Winter half-year, Summer half-year]
+
+  - name: fct_daily
+    description: One row per local day. hdd_20_12 = heating degree days (SIA 381/3).
+    columns:
+      - name: date_local
+        tests: [unique, not_null]
+      - name: is_complete
+        description: True when the day has all quarter-hours and at least 20 weather hours.

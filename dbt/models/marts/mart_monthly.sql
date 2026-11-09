@@ -1,5 +1,4 @@
 -- Mart: monthly totals with year-over-year change.
-CREATE OR REPLACE TABLE mart_monthly AS
 WITH m AS (
     SELECT
         year,
@@ -11,7 +10,7 @@ WITH m AS (
         sum(hdd_20_12)                         AS hdd_20_12,
         count(*)                               AS n_days,
         bool_and(is_complete)                  AS is_complete
-    FROM fct_daily
+    FROM {{ ref('fct_daily') }}
     GROUP BY year, month
 )
 SELECT
@@ -21,4 +20,4 @@ SELECT
     100.0 * (end_consumption_gwh / lag(end_consumption_gwh) OVER (PARTITION BY month ORDER BY year) - 1)
                                                                                  AS yoy_change_pct
 FROM m
-ORDER BY month_start;
+ORDER BY month_start

@@ -1,0 +1,24 @@
+version: 2
+
+models:
+  - name: mart_monthly
+    description: Monthly totals, production-consumption balance and year-over-year change.
+    columns:
+      - name: month_start
+        tests: [unique, not_null]
+
+  - name: mart_temp_sensitivity
+    description: >
+      Linear fit of daily end-user consumption on mean temperature, per heating season
+      (complete working days, Oct-Apr, colder than 15 °C).
+    columns:
+      - name: heating_season
+        tests: [unique, not_null]
+      - name: slope_mwh_per_degc
+        description: Change in daily consumption per +1 °C (negative = more demand when colder).
+
+  - name: mart_temp_bins
+    description: Average daily consumption per 1 °C temperature bin and day type.
+
+  - name: mart_load_profile
+    description: Average load (MW) by local hour, day type and season.

@@ -16,3 +16,8 @@ data/raw/swissgrid/*.xls*
 
 # macOS
 .DS_Store
+
+# dbt
+dbt/target/
+dbt/logs/
+logs/

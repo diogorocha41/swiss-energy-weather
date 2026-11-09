@@ -1,6 +1,5 @@
 -- Fact table: one row per hour with energy, weather and calendar features.
 -- Calendar features use Swiss local time of the START of the hour.
-CREATE OR REPLACE TABLE fct_hourly AS
 WITH base AS (
     SELECT
         g.hour_utc_end,
@@ -14,8 +13,8 @@ WITH base AS (
         w.precip_mm,
         w.sunshine_min,
         w.n_stations
-    FROM stg_grid_hourly g
-    LEFT JOIN stg_weather_hourly w USING (hour_utc_end)
+    FROM {{ ref('stg_grid_hourly') }} g
+    LEFT JOIN {{ ref('stg_weather_hourly') }} w USING (hour_utc_end)
 )
 SELECT
     b.*,
@@ -32,4 +31,4 @@ SELECT
     CASE WHEN month(b.hour_local_start) IN (10, 11, 12, 1, 2, 3)
          THEN 'Winter half-year' ELSE 'Summer half-year' END AS season
 FROM base b
-LEFT JOIN dim_holiday h ON h.holiday_date = CAST(b.hour_local_start AS DATE);
+LEFT JOIN {{ source('raw', 'dim_holiday') }} h ON h.holiday_date = CAST(b.hour_local_start AS DATE)

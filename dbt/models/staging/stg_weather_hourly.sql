@@ -1,10 +1,9 @@
 -- Staging: hourly station data -> one weighted "national" value per hour.
 -- Weights come from dim_station (config.py). A station with a missing value
 -- is left out and the remaining weights are re-normalised.
-CREATE OR REPLACE TABLE stg_weather_hourly AS
 WITH dedup AS (
     SELECT *
-    FROM raw_meteo_hourly
+    FROM {{ source('raw', 'raw_meteo_hourly') }}
     QUALIFY row_number() OVER (PARTITION BY station, ts_utc_end ORDER BY loaded_at DESC) = 1
 )
 SELECT
@@ -15,5 +14,5 @@ SELECT
     sum(d.sunshine_min * s.weight)   / nullif(sum(s.weight) FILTER (WHERE d.sunshine_min IS NOT NULL), 0)   AS sunshine_min,
     count(*) FILTER (WHERE d.temp_c IS NOT NULL)                                                            AS n_stations
 FROM dedup d
-JOIN dim_station s USING (station)
-GROUP BY 1;
+JOIN {{ source('raw', 'dim_station') }} s USING (station)
+GROUP BY 1

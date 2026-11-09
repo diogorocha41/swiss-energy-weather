@@ -1,0 +1,10 @@
+swiss_energy_weather:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # Set by src/transform.py; default works when running dbt from this folder.
+      path: "{{ env_var('DUCKDB_PATH', '../data/energy.duckdb') }}"
+      threads: 1
+      settings:
+        TimeZone: UTC

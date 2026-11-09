@@ -3,7 +3,7 @@
     python -m src.pipeline all          # ingest everything + transform
     python -m src.pipeline swissgrid    # only Swissgrid files
     python -m src.pipeline meteo        # only MeteoSwiss download/load
-    python -m src.pipeline transform    # only SQL models, tests, exports
+    python -m src.pipeline transform    # only dbt models, tests, exports
 """
 import argparse
 import logging
@@ -21,19 +21,26 @@ def main(argv=None) -> int:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
     t0 = time.time()
-    con = connect()
-    try:
-        if args.step in ("all", "swissgrid"):
-            ingest_swissgrid.run(con)
-        if args.step in ("all", "meteo"):
-            ingest_meteoswiss.run(con)
-        if args.step in ("all", "transform"):
-            transform.run(con)
-    except transform.DataTestError as e:
-        logging.error(str(e))
-        return 1
-    finally:
-        con.close()
+
+    # 1. Extract + load (Python)
+    if args.step in ("all", "swissgrid", "meteo"):
+        con = connect()
+        try:
+            if args.step in ("all", "swissgrid"):
+                ingest_swissgrid.run(con)
+            if args.step in ("all", "meteo"):
+                ingest_meteoswiss.run(con)
+        finally:
+            con.close()
+
+    # 2. Transform + test (dbt) and export
+    if args.step in ("all", "transform"):
+        try:
+            transform.run()
+        except transform.DataTestError as e:
+            logging.error(str(e))
+            return 1
+
     logging.info("done in %.1fs", time.time() - t0)
     return 0
 

@@ -3,12 +3,11 @@
 --   end_consumption_mwh = intercept + slope * temp_mean_c
 -- A slope of -900 means: each 1 °C colder adds ~900 MWh/day of demand.
 -- Heating season "2024/25" = October 2024 .. April 2025.
-CREATE OR REPLACE TABLE mart_temp_sensitivity AS
 WITH d AS (
     SELECT
         *,
         CASE WHEN month >= 10 THEN year ELSE year - 1 END AS season_start_year
-    FROM fct_daily
+    FROM {{ ref('fct_daily') }}
     WHERE is_complete
       AND day_type = 'Working day'
       AND month IN (10, 11, 12, 1, 2, 3, 4)
@@ -26,4 +25,4 @@ SELECT
 FROM d
 GROUP BY season_start_year
 HAVING count(*) >= 30
-ORDER BY season_start_year;
+ORDER BY season_start_year

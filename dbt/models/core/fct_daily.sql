@@ -1,7 +1,6 @@
 -- Fact table: one row per local day.
 -- hdd_20_12 = heating degree days per Swiss standard SIA 381/3 (20 °C indoor,
 -- heating limit 12 °C): 20 - Tmean on days with Tmean < 12 °C, else 0.
-CREATE OR REPLACE TABLE fct_daily AS
 SELECT
     date_local,
     any_value(day_type)                       AS day_type,
@@ -22,5 +21,5 @@ SELECT
     count(temp_c)                             AS n_weather_hours,
     -- DST days have 92 or 100 quarter-hours, normal days 96
     sum(n_quarter_hours) >= 92 AND count(temp_c) >= 20 AS is_complete
-FROM fct_hourly
-GROUP BY date_local;
+FROM {{ ref('fct_hourly') }}
+GROUP BY date_local
