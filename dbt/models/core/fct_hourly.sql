@@ -31,4 +31,5 @@ SELECT
     CASE WHEN month(b.hour_local_start) IN (10, 11, 12, 1, 2, 3)
          THEN 'Winter half-year' ELSE 'Summer half-year' END AS season
 FROM base b
-LEFT JOIN {{ source('raw', 'dim_holiday') }} h ON h.holiday_date = CAST(b.hour_local_start AS DATE)
+LEFT JOIN {{ source('raw', 'dim_holiday') }} h
+    ON h.country = 'CH' AND h.holiday_date = CAST(b.hour_local_start AS DATE)

@@ -14,7 +14,8 @@ sources:
           - name: series
             tests:
               - accepted_values:
-                  values: [end_consumption, total_consumption, production, net_outflow, grid_feed_in]
+                  arguments:
+                    values: [end_consumption, total_consumption, production, net_outflow, grid_feed_in]
       - name: raw_meteo_hourly
         description: MeteoSwiss SwissMetNet hourly station data (UTC, interval end).
         columns:
@@ -26,7 +27,32 @@ sources:
           - name: station
             tests: [unique, not_null]
       - name: dim_holiday
-        description: Swiss public holidays (computed in src/calendar_ch.py).
+        description: Public holidays for CH and PT (computed in src/calendar_ch.py).
         columns:
+          - name: country
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: [CH, PT]
           - name: holiday_date
+            tests: [not_null]
+      - name: raw_eredes
+        description: E-REDES mainland Portugal consumption, 15-minute, kWh per voltage level, UTC (interval end).
+        columns:
+          - name: ts_utc_end
+            tests: [unique, not_null]
+      - name: raw_openmeteo_hourly
+        description: ERA5 hourly temperature (Open-Meteo) for Swiss and Portuguese cities, UTC.
+        columns:
+          - name: country
+            tests:
+              - accepted_values:
+                  arguments:
+                    values: [CH, PT]
+      - name: dim_city
+        description: Cities used for the comparison temperature and their weights (from config.py).
+      - name: dim_country
+        description: Population per country used for per-capita figures (from config.py).
+        columns:
+          - name: country
             tests: [unique, not_null]

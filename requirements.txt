@@ -1,6 +1,6 @@
 # Pipeline (ingestion + dbt) — the dashboard has its own dashboard/requirements.txt
 duckdb>=1.1
-dbt-duckdb>=1.8
+dbt-duckdb>=1.10
 pandas>=2.2
 numpy>=1.26
 openpyxl>=3.1

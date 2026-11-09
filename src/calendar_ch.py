@@ -1,4 +1,4 @@
-"""Swiss public holidays (national + widely observed) used as a calendar feature.
+"""Public holidays for Switzerland and Portugal, used as a calendar feature.
 
 Electricity demand on holidays looks like a Sunday, so flagging them improves
 any consumption model. Cantonal holidays differ; this list keeps the days
@@ -39,11 +39,35 @@ def swiss_holidays(year: int) -> list[tuple[date, str]]:
     ]
 
 
+def portugal_holidays(year: int) -> list[tuple[date, str]]:
+    """National public holidays in Portugal (mainland)."""
+    easter = easter_sunday(year)
+    return [
+        (date(year, 1, 1), "Ano Novo"),
+        (easter - timedelta(days=2), "Sexta-feira Santa"),
+        (easter, "Páscoa"),
+        (date(year, 4, 25), "Dia da Liberdade"),
+        (date(year, 5, 1), "Dia do Trabalhador"),
+        (easter + timedelta(days=60), "Corpo de Deus"),
+        (date(year, 6, 10), "Dia de Portugal"),
+        (date(year, 8, 15), "Assunção de Nossa Senhora"),
+        (date(year, 10, 5), "Implantação da República"),
+        (date(year, 11, 1), "Dia de Todos os Santos"),
+        (date(year, 12, 1), "Restauração da Independência"),
+        (date(year, 12, 8), "Imaculada Conceição"),
+        (date(year, 12, 25), "Natal"),
+    ]
+
+
+HOLIDAY_FUNCTIONS = {"CH": swiss_holidays, "PT": portugal_holidays}
+
+
 def holiday_frame(start_year: int, end_year: int) -> pd.DataFrame:
     rows = [
-        {"holiday_date": d, "holiday_name": n}
+        {"country": country, "holiday_date": d, "holiday_name": n}
+        for country, fn in HOLIDAY_FUNCTIONS.items()
         for y in range(start_year, end_year + 1)
-        for d, n in swiss_holidays(y)
+        for d, n in fn(y)
     ]
     df = pd.DataFrame(rows)
     df["holiday_date"] = pd.to_datetime(df["holiday_date"])

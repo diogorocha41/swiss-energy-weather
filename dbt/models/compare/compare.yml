@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: stg_pt_load_hourly
+    description: E-REDES mainland Portugal consumption rolled up to hourly (UTC), MWh; total and low voltage.
+    columns:
+      - name: hour_utc_end
+        tests: [unique, not_null]
+
+  - name: stg_era5_hourly
+    description: Population-weighted ERA5 temperature per country and hour (Open-Meteo).
+
+  - name: fct_country_hourly
+    description: Hourly consumption for CH and PT with the same temperature source and local calendar features.
+    columns:
+      - name: country
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [CH, PT]
+
+  - name: fct_country_daily
+    description: Daily consumption per country, per capita, with completeness and common-window flags.
+    columns:
+      - name: country
+        tests: [not_null]
+
+  - name: int_country_daily_long
+    description: Long format (country × series × day) used by the comparison marts; flags the Christmas/New Year break and August as holiday periods.
+
+  - name: mart_country_sensitivity
+    description: >
+      Heating sensitivity per country/series/heating season (plus a pooled 'All' row) — extra Wh per
+      person per day for each 1 °C colder (working days, Oct–Apr, < 15 °C, excluding 20 Dec – 6 Jan),
+      with R² and % of daily demand.
+
+  - name: mart_country_cooling
+    description: Cooling sensitivity per country/series/year (plus pooled 'All') — extra Wh per person per day for 1 °C hotter (Jun–Sep excl. August, ≥ 20 °C).
+
+  - name: mart_country_temp_bins
+    description: Working-day consumption per person by 1 °C temperature bin (heating/cooling curve).
+
+  - name: mart_country_yearly
+    description: Yearly consumption per person for full years in the common window.

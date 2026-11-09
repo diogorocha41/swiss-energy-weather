@@ -58,3 +58,45 @@ METEO_PARAMS = {
 
 HTTP_TIMEOUT_S = 120
 USER_AGENT = "swiss-energy-weather/1.0 (portfolio project)"
+
+# --- Country comparison: Switzerland vs Portugal ---------------------------
+# Population used for per-capita figures (latest official estimates).
+POPULATION = {
+    # OFS, permanent resident population on 31.12.2025
+    "CH": 9_127_100,
+    # Mainland Portugal (E-REDES covers the mainland grid only):
+    # INE total 31.12.2025 (11 424 031) minus Madeira (266 130, DREM)
+    # minus Azores (~245 000, approximation).
+    "PT": 10_913_000,
+}
+
+# Portugal: E-REDES open data, national consumption, 15-minute, kWh, UTC.
+EREDES_EXPORT_URL = (
+    "https://e-redes.opendatasoft.com/api/explore/v2.1/catalog/datasets/"
+    "consumo-total-nacional/exports/csv"
+)
+RAW_EREDES_DIR = DATA_DIR / "raw" / "eredes"
+
+# Same weather source for both countries (ERA5 reanalysis via Open-Meteo),
+# so the comparison is not biased by different measurement methods.
+OPENMETEO_ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+OPENMETEO_START = "2019-01-01"
+OPENMETEO_CITIES = {
+    # country: {city: (lat, lon, weight)} — weights ≈ share of population/load
+    "CH": {
+        "Zurich": (47.377, 8.540, 0.30),
+        "Bern": (46.948, 7.447, 0.15),
+        "Basel": (47.560, 7.588, 0.12),
+        "Geneva": (46.204, 6.143, 0.15),
+        "Lausanne": (46.520, 6.633, 0.15),
+        "Lugano": (46.004, 8.951, 0.13),
+    },
+    "PT": {
+        "Lisboa": (38.722, -9.139, 0.40),
+        "Porto": (41.150, -8.611, 0.30),
+        "Braga": (41.545, -8.427, 0.10),
+        "Coimbra": (40.211, -8.429, 0.10),
+        "Faro": (37.019, -7.930, 0.10),
+    },
+}
+COUNTRY_TIMEZONE = {"CH": "Europe/Zurich", "PT": "Europe/Lisbon"}

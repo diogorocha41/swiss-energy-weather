@@ -53,7 +53,9 @@ sens = q("SELECT * FROM mart_temp_sensitivity ORDER BY season_start_year")
 years = sorted(daily["year"].unique().tolist())
 
 
-tab_findings, tab_explore = st.tabs(["📌 Key findings", "🔎 Explore by year"])
+tab_findings, tab_explore, tab_compare = st.tabs(
+    ["📌 Key findings", "🔎 Explore by year", "🇨🇭 vs 🇵🇹 Switzerland vs Portugal"]
+)
 
 # ------------------------------------------------------- key findings ---
 with tab_findings:
@@ -224,3 +226,161 @@ with tab_explore:
         use_container_width=True,
         hide_index=True,
     )
+
+
+# ------------------------------------------------- Switzerland vs Portugal ---
+with tab_compare:
+    if not (MARTS / "mart_country_sensitivity.parquet").exists():
+        st.info("Comparison data not built yet. Run `python -m src.pipeline all`.")
+        st.stop()
+
+    csens = q("SELECT * FROM mart_country_sensitivity")
+    ccool = q("SELECT * FROM mart_country_cooling")
+    cbins = q("SELECT * FROM mart_country_temp_bins")
+    cyear = q("SELECT * FROM mart_country_yearly")
+    cwin = q("SELECT min(date_local) AS d0, max(date_local) AS d1, count(DISTINCT date_local) AS n "
+             "FROM fct_country_daily WHERE in_common_window")
+
+    st.caption(
+        f"Same method for both countries: working days only, ERA5 temperature (Open-Meteo), "
+        f"{int(cwin.n[0]):,} common days ({pd.to_datetime(cwin.d0[0]):%b %Y} – {pd.to_datetime(cwin.d1[0]):%b %Y}). "
+        "Holiday periods (20 Dec – 6 Jan, August) are excluded from the weather models. "
+        "CH = Swissgrid end-user consumption · PT = E-REDES mainland consumption (total and low voltage)."
+    )
+
+    def get(df, country, series, col, period_col="heating_season", period="All"):
+        row = df[(df.country == country) & (df.series == series) & (df[period_col] == period)]
+        return row[col].iloc[0] if not row.empty else float("nan")
+
+    def fit(r2):
+        if pd.isna(r2):
+            return "n/a"
+        return "strong" if r2 >= 0.6 else "moderate" if r2 >= 0.3 else "weak"
+
+    BAND = "All, 7–15 °C"
+    h = {k: get(csens, *k, "wh_pc_per_degc_colder") for k in [("CH", "Total"), ("PT", "Total"), ("PT", "Low voltage")]}
+    hb = {k: get(csens, *k, "wh_pc_per_degc_colder", period=BAND) for k in h}
+    r2b = {k: get(csens, *k, "r2", period=BAND) for k in h}
+    pct = {k: get(csens, *k, "pct_per_degc_colder") for k in h}
+    r2 = {k: get(csens, *k, "r2") for k in h}
+    nd = {k: get(csens, *k, "n_days") for k in h}
+    c = {k: get(ccool, *k, "wh_pc_per_degc_hotter", "period") for k in h}
+    cr2 = {k: get(ccool, *k, "r2", "period") for k in h}
+
+    last_year = cyear.groupby("year").country.nunique().loc[lambda x: x == 2].index.max()
+    yr = cyear[cyear.year == last_year].set_index("country") if pd.notna(last_year) else None
+    bins_tot = cbins[cbins.series == "Total"]
+    valley = {k: int(g.loc[g.kwh_pc_mean.idxmin(), "temp_bin_c"]) for k, g in bins_tot.groupby("country")}
+
+    # ---- side-by-side table (clearer than metric cards for a comparison)
+    def fmt(v, f="{:,.0f}"):
+        return "–" if pd.isna(v) else f.format(v)
+
+    rows = []
+    if yr is not None:
+        rows.append(["Electricity per person per year (" + str(int(last_year)) + ")",
+                     fmt(yr.loc["CH", "kwh_per_capita"]) + " kWh", fmt(yr.loc["PT", "kwh_per_capita"]) + " kWh",
+                     fmt(yr.loc["PT", "low_voltage_kwh_per_capita"]) + " kWh"])
+    rows += [
+        ["Extra per person per day, per °C colder — same 7–15 °C range", fmt(hb[("CH", "Total")]) + " Wh",
+         fmt(hb[("PT", "Total")]) + " Wh", fmt(hb[("PT", "Low voltage")]) + " Wh"],
+        ["Extra per person per day, per °C colder — all winter days", fmt(h[("CH", "Total")]) + " Wh",
+         fmt(h[("PT", "Total")]) + " Wh", fmt(h[("PT", "Low voltage")]) + " Wh"],
+        ["… as % of daily demand", fmt(pct[("CH", "Total")], "{:.1f}") + " %",
+         fmt(pct[("PT", "Total")], "{:.1f}") + " %", fmt(pct[("PT", "Low voltage")], "{:.1f}") + " %"],
+        ["… model fit R² (days)", f"{fmt(r2[('CH', 'Total')], '{:.2f}')} ({fmt(nd[('CH', 'Total')])})",
+         f"{fmt(r2[('PT', 'Total')], '{:.2f}')} ({fmt(nd[('PT', 'Total')])})",
+         f"{fmt(r2[('PT', 'Low voltage')], '{:.2f}')} ({fmt(nd[('PT', 'Low voltage')])})"],
+        ["Extra per person per day, per °C hotter (summer)", fmt(c[("CH", "Total")]) + " Wh",
+         fmt(c[("PT", "Total")]) + " Wh", fmt(c[("PT", "Low voltage")]) + " Wh"],
+        ["Temperature with the lowest demand", f"{valley.get('CH', '–')} °C", f"{valley.get('PT', '–')} °C", "–"],
+    ]
+    st.dataframe(pd.DataFrame(rows, columns=["", "🇨🇭 Switzerland", "🇵🇹 Portugal (total)",
+                                             "🇵🇹 Portugal (low voltage)"]),
+                 use_container_width=True, hide_index=True)
+
+    # ---- what the data says (computed and hedged by model quality)
+    hc, hp, hl = hb[("CH", "Total")], hb[("PT", "Total")], h[("PT", "Low voltage")]
+    bullets = []
+    if pd.notna(hc) and pd.notna(hp):
+        ratio = hc / hp if hp > 0 else float("nan")
+        bullets.append(
+            f"❄️ **In the same 7–15 °C range, each 1 °C colder adds ≈ {hc:,.0f} Wh per person per day in Switzerland "
+            f"vs ≈ {hp:,.0f} Wh in Portugal**"
+            + (f" — ≈ {ratio:.1f}× more in Switzerland." if pd.notna(ratio) and ratio > 1 else ".")
+        )
+    if pd.notna(r2[("PT", "Total")]) and r2[("PT", "Total")] < 0.3:
+        bullets.append(
+            f"📉 The Portuguese fit is {fit(r2[('PT', 'Total')])} (R² {r2[('PT', 'Total')]:.2f} vs "
+            f"{r2[('CH', 'Total')]:.2f} in CH) mainly because Portuguese winter days span a narrow range "
+            "(≈ 7–15 °C), so day-to-day noise weighs more; the temperature curve below still shows a steady rise "
+            "as it gets colder. Rooftop solar (sunny cold days lower grid demand) also blurs the signal."
+        )
+    if pd.notna(hl):
+        hpt = h[("PT", "Total")]
+        share = f" — about {100 * hl / hpt:.0f} % of Portugal's total heating response" if pd.notna(hpt) and hpt > 0 and hl <= hpt else ""
+        bullets.append(
+            f"🏠 **In Portugal the cold response comes almost entirely from low voltage** (mostly homes and small "
+            f"businesses): ≈ {hl:,.0f} Wh per person per °C{share}, i.e. ≈ {pct[('PT', 'Low voltage')]:.1f} % of "
+            "low-voltage demand per °C."
+        )
+    if pd.notna(c[("PT", "Total")]):
+        bullets.append(
+            f"☀️ **Summer works the other way round:** each 1 °C hotter adds ≈ {c[('PT', 'Total')]:,.0f} Wh/person/day "
+            f"in Portugal vs ≈ {fmt(c[('CH', 'Total')])} in Switzerland (R² {fmt(cr2[('PT', 'Total')], '{:.2f}')} PT, "
+            f"{fmt(cr2[('CH', 'Total')], '{:.2f}')} CH)."
+        )
+    if valley:
+        bullets.append(
+            f"🌡️ Working-day demand per person is lowest around **{valley.get('CH', '–')} °C in Switzerland** and "
+            f"**{valley.get('PT', '–')} °C in Portugal**."
+        )
+    st.markdown("\n".join(f"- {b}" for b in bullets))
+
+    st.info(
+        "**How to read this.** These are *electricity* figures only. Much Swiss heating still runs on oil, gas "
+        "or district heat, so the Swiss response mostly reflects heat pumps and electric heating. "
+        "Electricity data cannot measure whether homes are warm enough: energy poverty is real in Portugal — "
+        "Eurostat reports that 15.7 % of people could not keep their home adequately warm in 2024, vs 9.2 % in "
+        "the EU — but it does not show up as a clearly weaker reaction to cold in this data."
+    )
+
+    # ---- heating/cooling curve
+    st.subheader("Electricity per person vs daily temperature (working days)")
+    cb = cbins.assign(label=cbins.country.map({"CH": "🇨🇭 Switzerland", "PT": "🇵🇹 Portugal"})
+                      + cbins.series.map({"Total": "", "Low voltage": " – low voltage"}))
+    curve = alt.Chart(cb).mark_line(point=True).encode(
+        x=alt.X("temp_bin_c:Q", title="Daily mean temperature (°C)"),
+        y=alt.Y("kwh_pc_mean:Q", title="kWh per person per day", scale=alt.Scale(zero=False)),
+        color=alt.Color("label:N", title=None),
+        strokeDash=alt.StrokeDash("series:N", legend=None),
+        tooltip=["label", "temp_bin_c", alt.Tooltip("kwh_pc_mean:Q", format=".2f"), "n_days"],
+    )
+    st.altair_chart(curve, use_container_width=True)
+
+    # ---- per season
+    st.subheader("Heating response per heating season")
+    seas = csens[csens.heating_season != "All"].assign(
+        label=lambda d: d.country.map({"CH": "🇨🇭 CH", "PT": "🇵🇹 PT"})
+        + d.series.map({"Total": "", "Low voltage": " low voltage"})
+    )
+    bars = alt.Chart(seas).mark_bar().encode(
+        x=alt.X("heating_season:N", title="Heating season"),
+        xOffset="label:N",
+        y=alt.Y("wh_pc_per_degc_colder:Q", title="Extra Wh per person per day, per °C colder"),
+        color=alt.Color("label:N", title=None),
+        tooltip=["label", "heating_season", alt.Tooltip("wh_pc_per_degc_colder:Q", format=",.0f"),
+                 alt.Tooltip("pct_per_degc_colder:Q", format=".2f"), alt.Tooltip("r2:Q", format=".2f"), "n_days"],
+    )
+    st.altair_chart(bars, use_container_width=True)
+
+    with st.expander("Model details (all regressions)"):
+        st.markdown("**Heating** (working days, Oct–Apr, < 15 °C, excl. 20 Dec – 6 Jan)")
+        st.dataframe(csens.round(3), use_container_width=True, hide_index=True)
+        st.markdown("**Cooling** (working days, Jun–Sep excl. August, ≥ 20 °C)")
+        st.dataframe(ccool.round(3), use_container_width=True, hide_index=True)
+        st.markdown("**Yearly figures** (full years in the common window)")
+        st.dataframe(cyear.round(1), use_container_width=True, hide_index=True)
+
+    st.caption("Sources: Swissgrid; E-REDES Open Data Portal (CC BY 4.0); ERA5 via Open-Meteo; "
+               "population: OFS (CH), INE/DREM (PT mainland, approx.).")

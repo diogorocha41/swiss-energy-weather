@@ -1,0 +1,11 @@
+version: 2
+
+seeds:
+  - name: grid_events
+    description: >
+      Known grid incidents during which consumption reflects supply failure, not demand.
+      Hours inside these windows are flagged and the affected days are excluded from the analysis.
+    config:
+      column_types:
+        start_utc: timestamp
+        end_utc: timestamp

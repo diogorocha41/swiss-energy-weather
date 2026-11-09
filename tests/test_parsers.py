@@ -113,3 +113,29 @@ def test_easter_known_dates():
 
 def test_holidays_contain_national_day():
     assert (date(2026, 8, 1), "Swiss National Day") in swiss_holidays(2026)
+
+
+# -------------------------------------------------------------- portugal ---
+def test_parse_eredes_csv():
+    from src.ingest_portugal import parse_eredes_csv
+
+    content = (
+        "datahora;bt;mt;at;mat;total\n"
+        "2026-11-01T22:45:00+00:00;678299.77;326151.54;208758.27;71088.40;1284298.00\n"
+        "2026-07-01T12:00:00+00:00;500000;300000;200000;70000;1070000\n"
+        "2026-07-01T12:00:00+00:00;500000;300000;200000;70000;1070000\n"
+    ).encode()
+    df = parse_eredes_csv(content)
+    assert len(df) == 2                                   # duplicate removed
+    assert df["ts_utc_end"].min() == pd.Timestamp("2026-07-01 12:00")  # naive UTC
+    assert df["total_kwh"].max() == 1284298.00
+
+
+def test_portugal_holidays():
+    from src.calendar_ch import holiday_frame, portugal_holidays
+
+    days = dict(portugal_holidays(2026))
+    assert days[date(2026, 4, 25)] == "Dia da Liberdade"
+    assert days[date(2026, 6, 4)] == "Corpo de Deus"      # Easter 5 Apr + 60 days
+    frame = holiday_frame(2026, 2026)
+    assert set(frame["country"]) == {"CH", "PT"}

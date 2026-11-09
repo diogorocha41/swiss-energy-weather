@@ -10,11 +10,13 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: [Working day, Saturday, Sunday, Holiday]
+              arguments:
+                values: [Working day, Saturday, Sunday, Holiday]
       - name: season
         tests:
           - accepted_values:
-              values: [Winter half-year, Summer half-year]
+              arguments:
+                values: [Winter half-year, Summer half-year]
 
   - name: fct_daily
     description: One row per local day. hdd_20_12 = heating degree days (SIA 381/3).

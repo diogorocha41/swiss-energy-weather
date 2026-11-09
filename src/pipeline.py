@@ -3,6 +3,7 @@
     python -m src.pipeline all          # ingest everything + transform
     python -m src.pipeline swissgrid    # only Swissgrid files
     python -m src.pipeline meteo        # only MeteoSwiss download/load
+    python -m src.pipeline portugal     # only E-REDES + Open-Meteo (country comparison)
     python -m src.pipeline transform    # only dbt models, tests, exports
 """
 import argparse
@@ -10,26 +11,29 @@ import logging
 import sys
 import time
 
-from src import ingest_meteoswiss, ingest_swissgrid, transform
+from src import ingest_meteoswiss, ingest_openmeteo, ingest_portugal, ingest_swissgrid, transform
 from src.db import connect
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Swiss energy x weather pipeline")
-    parser.add_argument("step", choices=["all", "swissgrid", "meteo", "transform"])
+    parser.add_argument("step", choices=["all", "swissgrid", "meteo", "portugal", "transform"])
     args = parser.parse_args(argv)
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-7s %(message)s")
     t0 = time.time()
 
     # 1. Extract + load (Python)
-    if args.step in ("all", "swissgrid", "meteo"):
+    if args.step in ("all", "swissgrid", "meteo", "portugal"):
         con = connect()
         try:
             if args.step in ("all", "swissgrid"):
                 ingest_swissgrid.run(con)
             if args.step in ("all", "meteo"):
                 ingest_meteoswiss.run(con)
+            if args.step in ("all", "portugal"):
+                ingest_portugal.run(con)
+                ingest_openmeteo.run(con)
         finally:
             con.close()
 

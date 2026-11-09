@@ -37,6 +37,30 @@ flowchart LR
 Full tables: [`docs/findings.md`](docs/findings.md), regenerated with `python scripts/findings.py`.
 
 
+## Switzerland vs Portugal
+
+Same method for both countries: per-person electricity, working days, ERA5 temperature (Open-Meteo) for both,
+1,362 days where both have complete data (Jan 2023 – Sep 2026), holiday periods (20 Dec – 6 Jan, August) excluded.
+Portugal = E-REDES mainland consumption (15-min open data, total and low voltage).
+
+* **Same cold, similar reaction.** In the temperature range both countries share (7–15 °C), each 1 °C colder adds
+  **≈ 320 Wh per person per day in Switzerland vs ≈ 270 Wh in Portugal** (+18 %). Relative to demand it is almost
+  identical: **1.9 % vs 1.8 % per °C**.
+* **The difference is the climate, not the reaction.** Switzerland had ≈ 4.5× more heating degree days in 2025
+  (2,986 vs 625) and many days below 7 °C — a range Portugal almost never sees — where Swiss demand reacts even more
+  (≈ 410 Wh/°C over all winter days). Still, a Swiss resident used only ≈ 21 % more electricity in 2025
+  (5,803 vs 4,803 kWh): most Swiss heat is not electric.
+* **In Portugal the cold response is a household story:** ≈ 93 % of it comes from low voltage (homes and small businesses).
+* **Portugal has a second peak in summer:** each 1 °C hotter adds ≈ 177 Wh/person/day (R² 0.39) vs a weak ≈ 107 in
+  Switzerland (R² 0.11). Portuguese demand is U-shaped (lowest around 17 °C); Swiss demand is L-shaped (flat above ≈ 18 °C).
+* **What this cannot show:** whether homes are warm enough. Energy poverty is real in Portugal (Eurostat: 15.7 % could not
+  keep their home adequately warm in 2024 vs 9.2 % in the EU), but electricity data alone cannot measure under-heating.
+
+**Data-quality story.** The dbt tests flagged 9 implausible hours in Portugal: the **28 April 2025 Iberian blackout**.
+Matching the first partial quarter-hour to the official 11:33 local time showed that E-REDES timestamps mark the *end*
+of each interval, which fixed the time alignment. The incident is documented in `dbt/seeds/grid_events.csv` and the
+affected days are excluded instead of silently deleting data.
+
 ## What it shows
 
 * **Temperature sensitivity** per heating season: extra MWh/day of demand for each °C colder (linear fit on working days < 15 °C).
@@ -123,6 +147,9 @@ Regenerate the findings below with `python scripts/findings.py` (writes `docs/fi
 
 * **Swissgrid** — Energy Statistic Switzerland (15-minute aggregates). Source: Swissgrid AG.
 * **MeteoSwiss** — Automatic weather stations (SwissMetNet), Open Government Data. Source: MeteoSwiss.
+* **E-REDES** — Open Data Portal, national consumption (CC BY 4.0).
+* **Open-Meteo** — ERA5 reanalysis temperature (non-commercial use).
+* **Population** — OFS (CH, 31.12.2025), INE/DREM (PT mainland, approximation).
 
 ---
 Author: Diogo Rocha · Electrical engineer moving into data engineering

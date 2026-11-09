@@ -21,3 +21,6 @@ data/raw/swissgrid/*.xls*
 dbt/target/
 dbt/logs/
 logs/
+
+# E-REDES raw download (re-downloaded every run)
+data/raw/eredes/

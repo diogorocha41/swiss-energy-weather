@@ -18,3 +18,5 @@ models:
       +tags: ["core"]
     marts:
       +tags: ["marts"]
+    compare:
+      +tags: ["compare"]
